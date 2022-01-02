@@ -1,5 +1,4 @@
 from app.models.transaction_count import Transaction_Count
-from app.utils.constants import API_KEY
 from app.utils.elastic import ElasticsearchManager
 from app.utils.utils import get_data
 from datetime import datetime
@@ -22,14 +21,16 @@ primer = [
 
 
 class TransactionScanner:
-    def __init__(self, contract_address) -> None:
+    def __init__(self, api_key, contract_address) -> None:
+        self.api_key = api_key
+        
         self.uri = (
             "https://api.covalenthq.com/v1/43114/address/"
             + contract_address
             + "/transactions_v2/?page-size=10000&primer="
             + str(primer)
             + "&key="
-            + API_KEY
+            + self.api_key
         )
         self._es = ElasticsearchManager()
 

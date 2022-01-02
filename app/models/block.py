@@ -1,5 +1,5 @@
-from tokendata.utils.constants import BLOCK_URI, API_KEY
-from tokendata.utils.utils import get_data
+from app.utils.constants import BLOCK_URI
+from app.utils.utils import get_data
 
 
 class Block(object):
@@ -7,8 +7,8 @@ class Block(object):
         self.height = height
         self.timestamp = None
 
-    def get_timestamp(self):
-        uri = "{}/{}/?quote-currency=USD&format=JSON&key={}".format(BLOCK_URI, self.height, API_KEY)
+    def get_timestamp(self, api_key):
+        uri = "{}/{}/?quote-currency=USD&format=JSON&key={}".format(BLOCK_URI, self.height, api_key)
         data = get_data(uri)        
         if "data" in data and "items" in data["data"]: 
             self.timestamp = data["data"]["items"][0]["signed_at"]

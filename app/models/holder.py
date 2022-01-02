@@ -2,11 +2,11 @@ from web3 import Web3
 
 
 class Holder(object):
-    def __init__(self, address, balance, staked_balance, block, timestamp) -> None:        
+    def __init__(self, address, balance, block, timestamp) -> None:
         self.address = address
-        self.balance = balance
+        self.balance = int(balance)
         self.converted_balance = 0
-        self.staked_balance = staked_balance
+        self.staked_balance = 0
         self.staked_balance_converted = 0
         self.block = block
         self.timestamp = timestamp
