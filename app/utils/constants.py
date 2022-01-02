@@ -1,0 +1,5 @@
+BASE_URI = "https://api.covalenthq.com/v1/43114"
+BLOCK_URI = BASE_URI + "/block_v2"
+HOLDER_URI = BASE_URI + "/tokens"
+HOLDER_INDEX = "holders_test123"
+STAKED_INDEX = "staked_holders_test123"
