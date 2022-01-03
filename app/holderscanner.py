@@ -2,7 +2,7 @@ import asyncio
 from asyncio.locks import Semaphore
 from concurrent.futures import ThreadPoolExecutor
 import json
-from app.utils.constants import (HOLDER_URI, BLOCK_URI, STAKED_INDEX, HOLDER_INDEX)
+from app.utils.constants import (HOLDER_URI, BLOCK_URI, STAKED_INDEX, HOLDER_INDEX, EXEMPT_ADDRESSES)
 from app.utils.elastic import ElasticsearchManager
 from app.models.block import Block
 from app.models.holder import Holder
@@ -10,6 +10,7 @@ from app.utils.utils import generate_block_ranges, get_data
 from app.models.contract import ContractConnector
 from typing import List, Tuple
 from web3 import Web3
+from datetime import datetime
 
 
 class PotentialStakedHolders():
@@ -17,13 +18,20 @@ class PotentialStakedHolders():
         self.holders = []
 
     def read(self):
-        with open('potential_staked_holders.json') as f:
-            self.holders = json.load(f)
+        try:
+            with open('potential_staked_holders.json') as f:
+                self.holders = json.load(f)
+        except FileNotFoundError:
+            self.holders = []
 
     def write(self):
+
         if len(self.holders) > 0:
-            with open('potential_staked_holders.json', 'w') as f:
-                json.dump(self.holders, f)
+            try:
+                with open('potential_staked_holders.json', 'w') as f:
+                    json.dump(self.holders, f)
+            except Exception as exc:
+                print("Exception: Unable to write potential_staked_holders.json " + str(exc))
 
 
 class HolderScanner():
@@ -64,24 +72,31 @@ class HolderScanner():
         return balance, converted_balance
 
     def get_timestamp(self, block_height):
-        uri = "{}/{}/?quote-currency=USD&format=JSON&key={}".format(BLOCK_URI, block_height, self.api_key)
+        uri = "{}/{}/?quote-currency=USD&format=JSON&key={}".format(BLOCK_URI, block_height, self.api_key)        
         data = get_data(uri)
         if "data" in data and "items" in data["data"]:
             return data["data"]["items"][0]["signed_at"]
+
+    # def get_timestamp(self, block_number) -> datetime:        
+    #     timestamp = self.staked_contract.web3.eth.get_block(block_number).timestamp
+    #     dt_object = datetime.fromtimestamp(timestamp)
+    #     return dt_object
 
     async def gather_holders(self, semaphore: Semaphore, block_number, is_staked: bool=False):
         await semaphore.acquire()
         loop = asyncio.get_event_loop()
         print("processing " + str(block_number))
-        timestamp = await loop.run_in_executor(ThreadPoolExecutor(5), self.get_timestamp, block_number)  # type: datetime
-        print("block timestamp " + str(timestamp))
+        timestamp = await loop.run_in_executor(ThreadPoolExecutor(50), self.get_timestamp, block_number)  # type: datetime
+        print("Block " + str(block_number) + " timestamp: " + str(timestamp))
         holders = [] # type: List[Holder]
         index = HOLDER_INDEX
         if is_staked:
             index = STAKED_INDEX
         if self.latest:
             index = index + "_latest"
-        data = get_data(self.create_uri(block_number))
+        print("Block " + str(block_number) + " getting holders")
+        data = await loop.run_in_executor(ThreadPoolExecutor(50), get_data, self.create_uri(block_number))
+        print("Block " + str(block_number) + " processing holder data")
         if "data" in data and "items" in data["data"]:
             cov_holders = data["data"]["items"]
             psh = PotentialStakedHolders()
@@ -93,17 +108,21 @@ class HolderScanner():
                 holders.append(holder)
             psh.write()
 
+        print("Block " + str(block_number) + ": Getting potential staked holders")
         combined_holders = []
         for h in psh.holders:
             holder = next((x for x in holders if x.address == h), None)
             if not holder:
                 holder = Holder(h, 0, block_number, timestamp) # type: Holder
-            staked_balance, staked_balance_converted = await loop.run_in_executor(ThreadPoolExecutor(50), self.get_staked_balance, holder.address, block_number)
-            holder.staked_balance = staked_balance
-            holder.staked_balance_converted = staked_balance_converted
-            if holder.staked_balance > 0 or holder.balance > 0:
-                combined_holders.append(holder.__dict__)
-
+            if holder.address not in EXEMPT_ADDRESSES:
+                staked_balance, staked_balance_converted = await loop.run_in_executor(ThreadPoolExecutor(50), self.get_staked_balance, holder.address, block_number)
+                holder.staked_balance = staked_balance
+                holder.staked_balance_converted = staked_balance_converted
+                if holder.staked_balance > 0 or holder.balance > 0:
+                    print(holder.__dict__)                
+                    combined_holders.append(holder.__dict__)
+        
+        print("Block " + str(block_number) + ": Sending data to elastic")
         if len(combined_holders) > 0:
             if is_staked:
                 print(str(len(combined_holders)) + " sFort holders sent to elastic")
