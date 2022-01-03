@@ -7,6 +7,7 @@ mapping = {
       "number_of_replicas": 0
     },
   "mappings": {
+      "dynamic": "false",
       "properties": {
         "@timestamp": {
           "type": "date"
@@ -18,13 +19,15 @@ mapping = {
           "type": "long"
         },
         "converted_balance": {
-          "type": "double"
+          "type": "scaled_float",
+          "scaling_factor": 1000000000
         },
         "staked_balance": {
           "type": "long"
         },
-        "staked_converted_balance": {
-          "type": "double"
+        "staked_balance_converted": {
+          "type": "scaled_float",
+          "scaling_factor": 1000000000
         },
         "block": {
           "type": "long"

@@ -15,6 +15,4 @@ class Holder(object):
         self.convert_balance()
 
     def convert_balance(self):
-        self.converted_balance =  "{:.10f}".format(Web3.fromWei(int(self.balance), 'gwei'))
-        if self.staked_balance > 0:
-            self.staked_balance_converted =  "{:.10f}".format(Web3.fromWei(int(self.staked_balance), 'gwei'))
+        self.converted_balance =  "{:.9f}".format(Web3.fromWei(int(self.balance), 'gwei'))

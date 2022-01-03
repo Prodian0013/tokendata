@@ -68,7 +68,7 @@ class HolderScanner():
             # print("Exception: " + str(wallet_address) + " at block "+ str(block_number) + " " + str(exc))
             balance = 0
         if balance > 0:
-            converted_balance = "{:.10f}".format(Web3.fromWei(int(balance), 'gwei'))
+            converted_balance = "{:.9f}".format(Web3.fromWei(int(balance), 'gwei'))
         return balance, converted_balance
 
     def get_timestamp(self, block_height):
@@ -76,11 +76,6 @@ class HolderScanner():
         data = get_data(uri)
         if "data" in data and "items" in data["data"]:
             return data["data"]["items"][0]["signed_at"]
-
-    # def get_timestamp(self, block_number) -> datetime:        
-    #     timestamp = self.staked_contract.web3.eth.get_block(block_number).timestamp
-    #     dt_object = datetime.fromtimestamp(timestamp)
-    #     return dt_object
 
     async def gather_holders(self, semaphore: Semaphore, block_number, is_staked: bool=False):
         await semaphore.acquire()
@@ -118,8 +113,7 @@ class HolderScanner():
                 staked_balance, staked_balance_converted = await loop.run_in_executor(ThreadPoolExecutor(50), self.get_staked_balance, holder.address, block_number)
                 holder.staked_balance = staked_balance
                 holder.staked_balance_converted = staked_balance_converted
-                if holder.staked_balance > 0 or holder.balance > 0:
-                    print(holder.__dict__)                
+                if holder.staked_balance > 0 or holder.balance > 0:                                    
                     combined_holders.append(holder.__dict__)
         
         print("Block " + str(block_number) + ": Sending data to elastic")
